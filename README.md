@@ -3,6 +3,24 @@
 
 Turing Factorio is a computation mod. It adds programmable computers to further increase your factory's efficiency.
 
+## Roadmap
+
+- Controller terminal:
+  - input commands to basic shell
+  - edit scripts
+  - upload scripts to microcontrollers over network (via IP address)
+  - send commands to microcontrollers running scripts
+  - run scripts locally
+  
+- Microcontroller:
+  - Run scripts
+  - Recieve commands from controller
+
+- Scripts:
+  - Lua scripts
+  - Output signals to circuit network
+  - Recieve signals from circuit network
+
 ## The Terminal
 Allows for user input to control the network and write scripts.
 
