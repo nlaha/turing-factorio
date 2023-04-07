@@ -4,6 +4,6 @@
   "title": "Turing Factorio",
   "author": "Nathan Laha",
   "factorio_version": "1.1",
-  "dependencies": ["base >= 1.1"],
+  "dependencies": ["base >= 1.1", "flib >= 0.12.6"],
   "description": "Turing Factorio adds functional computers to the game."
 }

@@ -2,10 +2,13 @@ local default_environment = {
     repl = false
 }
 
-function initialize_filesystem()
+function initialize_filesystem(id)
     -- create filesystem if it doesn't already exist
     if not global.fs then
-        global.fs = {
+        global.fs = {}
+    end
+    if not global.fs[id] then
+        global.fs[id] = {
             input = {
                 stdin = {
                     contents = "",
@@ -23,63 +26,68 @@ function initialize_filesystem()
     end
 end
 
-function reset_environment()
-    global.fs.environment = default_environment
+function reset_environment(id)
+    global.fs[id].environment = default_environment
 end
 
 -- function to write to stdout
-function stdout(input)
+function stdout(id, input)
+    if not global.fs[id] then
+        game.print("Error: terminal " .. id .. " does not exist.")
+    end
     -- write input from cursor location
-    global.fs.output.stdout.contents =
-        string.sub(global.fs.output.stdout.contents, 1, global.fs.output.stdout.cursor) .. input ..
-            string.sub(global.fs.output.stdout.contents, global.fs.output.stdout.cursor + 1)
+    global.fs[id].output.stdout.contents = string.sub(global.fs[id].output.stdout.contents, 1,
+        global.fs[id].output.stdout.cursor) .. input ..
+                                               string.sub(global.fs[id].output.stdout.contents,
+            global.fs[id].output.stdout.cursor + 1)
 
     -- add length of input to cursor
-    global.fs.output.stdout.cursor = global.fs.output.stdout.cursor + string.len(input)
+    global.fs[id].output.stdout.cursor = global.fs[id].output.stdout.cursor + string.len(input)
 end
 
-function clear_stdout()
-    global.fs.output.stdout.contents = ""
-    global.fs.output.stdout.cursor = 1
+function clear_stdout(id)
+    global.fs[id].output.stdout.contents = ""
+    global.fs[id].output.stdout.cursor = 1
 end
 
-function prompt()
-    if not global.fs.environment.repl then
-        stdout("engineer@nauvisos:~$ ")
+function prompt(id)
+    if not global.fs[id].environment.repl then
+        stdout(id, "engineer@nauvisos:~$ ")
     else
-        stdout("engineer@nauvisos [REPL]:~$ ")
+        stdout(id, "engineer@nauvisos [REPL]:~$ ")
     end
 end
 
-function help()
-    stdout("  1.  help - display this help message\n")
-    stdout("  2.  clear - clear the terminal\n")
-    stdout("  3.  repl - enter the nauvis os repl environment\n")
+function help(id)
+    stdout(id, "  1.  help - display this help message\n")
+    stdout(id, "  2.  clear - clear the terminal\n")
+    stdout(id, "  3.  repl - enter the nauvis os repl environment\n")
 end
 
-function clear()
-    clear_stdout()
+function clear(id)
+    clear_stdout(id)
 end
 
-function repl()
-    if not global.fs.environment.repl then
-        global.fs.environment.repl = true
-        stdout("Entering REPL environment. Type 'exit' to exit.\n")
+function repl(id)
+    if not global.fs[id].environment.repl then
+        global.fs[id].environment.repl = true
+        stdout(id, "Entering REPL environment. Type 'exit' to exit.\n")
     end
 end
 
-function boot_os()
+-- name is the name of the terminal we're booting
+function boot_os(id)
 
     -- clear stdout
-    clear_stdout()
+    clear_stdout(id)
 
     -- reset environment
-    reset_environment()
+    reset_environment(id)
 
     -- write a welcome message to stdout
-    stdout("NauvisOS v0.0.1\nWelcome!\nType 'help' for a list of commands.\n")
+    stdout(id, "NauvisOS v0.0.1\nWelcome!\nType 'help' for a list of commands.\n")
 
-    stdout("Memory initialized.\n")
-    prompt()
+    stdout(id, "Memory initialized.\n")
+    prompt(id)
 
 end
