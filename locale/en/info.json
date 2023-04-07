@@ -1,0 +1,9 @@
+{
+  "language-name": "English",
+  "font": {
+    "vt323":
+    [
+        "__turing-factorio__/fonts/VT323-Regular.ttf"
+    ]
+  }
+}
