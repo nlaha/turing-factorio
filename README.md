@@ -3,6 +3,10 @@
 
 Turing Factorio is a computation mod. It adds programmable computers to further increase your factory's efficiency.
 
+**This mod is currently a work in progress, feel free to submit a pull request if you have any suggestions or code improvements.**
+
+https://user-images.githubusercontent.com/10292944/230709296-28ac583d-2eae-476a-ba92-80299d3c858a.mp4
+
 ## Roadmap
 
 - Controller terminal:
