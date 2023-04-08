@@ -33,6 +33,10 @@ local function on_entity_destroyed(e)
         return
     end
 
+    -- destroy filesystem for the hash of the entity
+    local hash = hash_entity(entity)
+    destroy_filesystem(hash)
+
     for player_index, gui in pairs(global.tf_terminal_gui) do
         if gui.entity == entity then
             destroy_gui(player_index)
@@ -50,17 +54,13 @@ end
 
 entity.on_init = function()
     global.tf_terminal_gui = {}
-    global.tf_terminal_sessions = {}
-    initialize_filesystem("1")
-    boot_os("1")
 end
 
-entity.on_entity_spawned = function()
-    -- play a beep sound
-    game.play_sound {
-        path = "transmit",
-        position = {0, 0}
-    }
+local function on_built_entity(e)
+    -- create a filesystem for the hash of the entity
+    local hash = hash_entity(e.created_entity)
+    initialize_filesystem(hash)
+    boot_os(hash)
 end
 
 entity.events = {
@@ -68,7 +68,8 @@ entity.events = {
     [defines.events.on_gui_opened] = on_gui_opened,
     [defines.events.on_player_mined_entity] = on_entity_destroyed,
     [defines.events.on_robot_mined_entity] = on_entity_destroyed,
-    [defines.events.script_raised_destroy] = on_entity_destroyed
+    [defines.events.script_raised_destroy] = on_entity_destroyed,
+    [defines.events.on_built_entity] = on_built_entity
 }
 
 return entity

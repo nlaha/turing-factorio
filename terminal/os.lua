@@ -26,6 +26,10 @@ function initialize_filesystem(id)
     end
 end
 
+function destroy_filesystem(id)
+    global.fs[id] = nil
+end
+
 function reset_environment(id)
     global.fs[id].environment = default_environment
 end

@@ -20,25 +20,6 @@ function util.close_button(handler)
     }
 end
 
---- @param mode InfinityPipeMode
---- @param handler GuiElemHandler
---- @return GuiElemDef
-function util.mode_radio_button(mode, handler)
-    return {
-        type = "radiobutton",
-        name = "mode_radio_button_" .. string.gsub(mode, "%-", "_"),
-        caption = {"gui-infinity-container." .. mode},
-        tooltip = {"gui-infinity-pipe." .. mode .. "-tooltip"},
-        state = false,
-        tags = {
-            mode = mode
-        },
-        handler = {
-            [defines.events.on_gui_checked_state_changed] = handler
-        }
-    }
-end
-
 function util.pusher()
     return {
         type = "empty-widget",
@@ -92,6 +73,13 @@ function util.get_blueprint(e)
     end
 
     return bp
+end
+
+--- returns a unique string hash for an entity
+--- precondition: entity is valid
+--- @param entity LuaEntity
+function hash_entity(entity)
+    return entity.name .. ":" .. entity.position.x .. ":" .. entity.position.y
 end
 
 return util

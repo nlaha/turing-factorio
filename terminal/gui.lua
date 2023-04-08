@@ -30,13 +30,14 @@ local handlers = {
         local player = game.get_player(e.player_index)
         local screen_element = player.gui.screen
         local computer_frame_outer = screen_element["tf_computer_frame_outer"]
+        local hash = hash_entity(self.entity)
         if computer_frame_outer then
             if e.element.name == "tf_terminal_text" then
                 -- make sure the user doesn't erase any previous output that 
                 -- was written to stdout
 
                 -- get length of stdout
-                local stdout_length = string.len(global.fs["1"].output.stdout.contents)
+                local stdout_length = string.len(global.fs[hash].output.stdout.contents)
 
                 -- get substring from start of text to end of stdout
                 local text = string.sub(e.element.text, 1, stdout_length)
@@ -45,8 +46,8 @@ local handlers = {
                 local rest = string.sub(e.element.text, stdout_length + 1)
 
                 -- if it doesn't match, reset the text to the previous value
-                if text ~= global.fs["1"].output.stdout.contents then
-                    e.element.text = global.fs["1"].output.stdout.contents .. rest
+                if text ~= global.fs[hash].output.stdout.contents then
+                    e.element.text = global.fs[hash].output.stdout.contents .. rest
                 end
 
                 -- if the player presses enter, push the input from stdout_length + 1 to the end
@@ -60,41 +61,46 @@ local handlers = {
                     -- trim whitespace
                     input = string.gsub(input, "^%s*(.-)%s*$", "%1")
 
+                    -- if the input is empty, don't do anything
+                    if input == "" then
+                        return
+                    end
+
                     -- write input to stdin and stdout
-                    global.fs["1"].input.stdin.contents = input
-                    stdout("1", input .. "\n")
+                    global.fs[hash].input.stdin.contents = input
+                    stdout(hash, input .. "\n")
 
                     local success = false
                     local err = ""
 
-                    if global.fs["1"].environment.repl then
+                    if global.fs[hash].environment.repl then
                         if input == "exit" then
-                            global.fs["1"].environment.repl = false
-                            stdout("1", "Exiting REPL environment.")
+                            global.fs[hash].environment.repl = false
+                            stdout(hash, "Exiting REPL environment.")
                         else
                             -- execute lua code
                             success, err = pcall(function()
                                 local out = assert(loadstring("return " .. input))() .. "\n"
-                                stdout("1", out)
+                                stdout(hash, out)
                             end)
                         end
                     else
                         -- run the command
                         success, err = pcall(function()
-                            _G[input]("1") -- argument is the id of the terminal we currently have open
+                            _G[input](hash) -- argument is the id of the terminal we currently have open
                         end)
                     end
 
                     -- if there was an error, print it to stdout
                     if not success then
-                        stdout("1", err .. "\n")
+                        stdout(hash, err .. "\n")
                     end
 
                     -- regardless of status, print the prompt
-                    prompt("1")
+                    prompt(hash)
 
                     -- update the text
-                    e.element.text = global.fs["1"].output.stdout.contents
+                    e.element.text = global.fs[hash].output.stdout.contents
                 end
             end
         end
@@ -116,6 +122,7 @@ end)
 -- create computer GUI
 function create_gui(player, entity)
 
+    local hash = hash_entity(entity)
     local elems = gui.add(player.gui.screen, {
         type = "frame",
         name = "tf_computer_frame_outer",
@@ -168,7 +175,7 @@ function create_gui(player, entity)
                 {
                     type = "text-box",
                     name = "tf_terminal_text",
-                    text = global.fs["1"].output.stdout.contents,
+                    text = global.fs[hash].output.stdout.contents,
                     style = "tf_terminal_text",
                     handler = {
                         [defines.events.on_gui_text_changed] = handlers.on_gui_text_changed

@@ -1,0 +1,4 @@
+{
+  "Lua.workspace.library": ["../turing-factorio-src/flib_0.12.6"],
+  "Lua.runtime.version": "5.2.1"
+}
