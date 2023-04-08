@@ -35,5 +35,6 @@ styles["tf_terminal_text"] = {
     width = 420,
     height = 280,
     font = "vt323",
+    font_size = 26,
     active_background = {}
 }

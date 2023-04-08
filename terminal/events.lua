@@ -54,6 +54,13 @@ end
 
 entity.on_init = function()
     global.tf_terminal_gui = {}
+
+    -- filesystem is a table of tables, where the key is the hash of the entity
+    -- used to store per-computer data
+    if not global.fs then
+        global.fs = {}
+    end
+
 end
 
 local function on_built_entity(e)
