@@ -114,16 +114,23 @@ function edit(id, args)
 
 end
 
+--- clears the terminal
+---@param id any
 function clear(id)
     clear_stdout(id)
 end
 
+--- prints the working directory
+---@param id any
 function ls(id)
     for k, v in pairs(global.fs[id].files) do
         stdout(id, k .. "\n")
     end
 end
 
+--- prints the contents of a file
+---@param id any
+---@param args any
 function cat(id, args)
     local filename = args[1]
     if not filename then
@@ -139,6 +146,9 @@ function cat(id, args)
     stdout(id, global.fs[id].files[filename].contents)
 end
 
+--- deletes a file
+---@param id any
+---@param args any
 function rm(id, args)
     local filename = args[1]
     if not filename then
@@ -154,6 +164,9 @@ function rm(id, args)
     global.fs[id].files[filename] = nil
 end
 
+--- executes the file locally
+---@param id any
+---@param args any
 function run(id, args)
     local filename = args[1]
     if not filename then
@@ -179,7 +192,51 @@ function run(id, args)
     success()
 end
 
+--- function to write a signal
+---@param id any
+---@param wire any
+---@param signal any
+function write_signal(id, wire, signal)
+    -- gets the entity with the given id
+    local entity = entity_from_hash(id)
+
+    -- if the entity is nil, return
+    if not entity then
+        return
+    end
+
+    -- output signal on the given wire
+    -- TODO: Change prototype type such that it has an output signal
+    -- (we need the correct control behavior)
+end
+
+-- function to read a signal
+---@param id any
+---@param wire any
+---@param signal any
+function read_signal(id, wire, signal)
+    -- gets the entity with the given id
+    local entity = entity_from_hash(id)
+
+    -- if the entity is nil, return
+    if not entity then
+        return
+    end
+
+    -- read signal on the given wire
+    signals = entity.get_circuit_network(wire).signals
+
+    -- if the signal is nil, return
+    if not signals then
+        return
+    end
+
+    -- return the signal
+    return signals[signal]
+end
+
 -- command to enter the repl environment
+---@param id any
 function repl(id)
     if not global.fs[id].environment.repl then
         global.fs[id].environment.repl = true
@@ -188,6 +245,7 @@ function repl(id)
 end
 
 -- name is the name of the terminal we're booting
+---@param id any
 function boot_os(id)
     -- clear stdout
     clear_stdout(id)
@@ -202,11 +260,18 @@ function boot_os(id)
     prompt(id)
 end
 
+--- called in text update when in file editing mode
+---@param e any
+---@param hash any
 function handle_editing(e, hash)
     -- allow the user to make changes to stdout
     global.fs[hash].output.stdout.contents = e.element.text
 end
 
+--- function to handle the shell, called in text update
+---@param e any
+---@param hash any
+---@return any
 function handle_shell(e, hash)
     -- make sure the user doesn't erase any previous output that 
     -- was written to stdout

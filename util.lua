@@ -93,4 +93,10 @@ function hash_entity(entity)
     return entity.name .. ":" .. entity.position.x .. ":" .. entity.position.y
 end
 
+--- returns an entity from a hash
+function entity_from_hash(hash)
+    local name, x, y = strsplit(hash, ":")
+    return game.surfaces[1].find_entity(name, {tonumber(x), tonumber(y)})
+end
+
 return util
