@@ -1,8 +1,14 @@
+require("__turing-factorio__/tf_scripting_api")
+
 local default_environment = {
     repl = false,
     editing = false,
     current_file = nil
 }
+
+local script_prefix = [[
+
+]]
 
 function initialize_filesystem(id)
     -- create filesystem if it doesn't already exist
@@ -36,21 +42,6 @@ function reset_environment(id)
     global.fs[id].environment = default_environment
 end
 
--- function to write to stdout
-function stdout(id, input)
-    if not global.fs[id] then
-        game.print("Error: terminal " .. id .. " does not exist.")
-    end
-    -- write input from cursor location
-    global.fs[id].output.stdout.contents = string.sub(global.fs[id].output.stdout.contents, 1,
-        global.fs[id].output.stdout.cursor) .. input ..
-                                               string.sub(global.fs[id].output.stdout.contents,
-            global.fs[id].output.stdout.cursor + 1)
-
-    -- add length of input to cursor
-    global.fs[id].output.stdout.cursor = global.fs[id].output.stdout.cursor + string.len(input)
-end
-
 -- function to clear stdout
 function clear_stdout(id)
     global.fs[id].output.stdout.contents = ""
@@ -68,15 +59,58 @@ end
 
 -- command to display help
 function help(id)
-    stdout(id, "  1.  help - display this help message\n")
-    stdout(id, "  2.  clear - clear the terminal\n")
-    stdout(id, "  3.  repl - enter the nauvis os repl environment\n")
-    stdout(id, "  4.  edit <filename> - edit a file\n")
-    stdout(id, "  5.  run <filename> - run a file\n")
-    stdout(id, "  6.  ls - list files\n")
-    stdout(id, "  7.  cat <filename> - display the contents of a file\n")
-    stdout(id, "  8.  rm <filename> - remove a file\n")
-    stdout(id, "  9.  flash <filename> <ip address/serial port>\n")
+    stdout(id, [[
+Welcome to the Nauvis OS help page.
+Type "man <command>" to get help on a specific command.
+Available commands:
+help, clear, repl, edit, run, ls, cat, rm, flash, mkdir, cd
+    ]])
+end
+
+function man(id, args)
+    local cmdname = args[1]
+
+    if not cmdname then
+        stdout(id, "Error: no command specified.\n")
+        return
+    end
+
+    if cmdname == "help" then
+        stdout(id, "help - display this help message\n")
+
+    elseif cmdname == "clear" then
+        stdout(id, "clear - clear the terminal\n")
+        
+    elseif cmdname == "repl" then
+        stdout(id, "repl - enter the nauvis os repl environment\n")
+    
+    elseif cmdname == "edit" then
+        stdout(id, "edit <filename> - edit a file\n")
+    
+    elseif cmdname == "run" then
+        stdout(id, "run <filename> - run a file\n")
+    
+    elseif cmdname == "ls" then
+        stdout(id, "ls - list files\n")
+    
+    elseif cmdname == "cat" then
+        stdout(id, "cat <filename> - display the contents of a file\n")
+    
+    elseif cmdname == "rm" then
+        stdout(id, "rm <filename> - remove a file\n")
+    
+    elseif cmdname == "flash" then
+        stdout(id, "flash <filename> <ip address/serial port>\n")
+    
+    elseif cmdname == "mkdir" then
+        stdout(id, "mkdir <dirname> - create a directory\n")
+
+    elseif cmdname == "cd" then
+        stdout(id, "cd <dirname> - change directory\n")
+    else
+        stdout(id, "Error: command " .. cmdname .. " not found.\n")
+    end
+
 end
 
 -- command to edit a file
@@ -146,7 +180,51 @@ function cat(id, args)
     stdout(id, global.fs[id].files[filename].contents)
 end
 
---- deletes a file
+--- creates a directory
+---@param id any
+---@param args any
+function mkdir(id, args)
+    local dirname = args[1]
+    if not dirname then
+        stdout(id, "Error: no directory name specified.\n")
+        return
+    end
+
+    if global.fs[id].files[dirname] then
+        stdout(id, "Error: file or directory " .. dirname .. " already exists.\n")
+        return
+    end
+
+    global.fs[id].files[dirname] = {
+        contents = {},
+        directory = true
+    }
+end
+
+-- changes the current directory
+---@param id any
+---@param args any
+function cd(id, args)
+    local dirname = args[1]
+    if not dirname then
+        stdout(id, "Error: no directory name specified.\n")
+        return
+    end
+
+    if not global.fs[id].files[dirname].directory then
+        stdout(id, "Error: " .. dirname .. " is not a directory.\n")
+        return
+    end
+
+    if not global.fs[id].files[dirname] then
+        stdout(id, "Error: directory " .. dirname .. " does not exist.\n")
+        return
+    end
+
+    global.fs[id].environment.current_directory = dirname
+end
+
+--- deletes a file or directory
 ---@param id any
 ---@param args any
 function rm(id, args)
@@ -183,56 +261,13 @@ function run(id, args)
     clear_stdout(id)
 
     -- run the file using loadstring
-    local success, err = loadstring(global.fs[id].files[filename].contents, filename)
+    local success, err = loadstring(script_prefix .. global.fs[id].files[filename].contents, filename)
     if not success then
         stdout(id, "Error: " .. err .. "\n")
         return
     end
 
     success()
-end
-
---- function to write a signal
----@param id any
----@param wire any
----@param signal any
-function write_signal(id, wire, signal)
-    -- gets the entity with the given id
-    local entity = entity_from_hash(id)
-
-    -- if the entity is nil, return
-    if not entity then
-        return
-    end
-
-    -- output signal on the given wire
-    -- TODO: Change prototype type such that it has an output signal
-    -- (we need the correct control behavior)
-end
-
--- function to read a signal
----@param id any
----@param wire any
----@param signal any
-function read_signal(id, wire, signal)
-    -- gets the entity with the given id
-    local entity = entity_from_hash(id)
-
-    -- if the entity is nil, return
-    if not entity then
-        return
-    end
-
-    -- read signal on the given wire
-    signals = entity.get_circuit_network(wire).signals
-
-    -- if the signal is nil, return
-    if not signals then
-        return
-    end
-
-    -- return the signal
-    return signals[signal]
 end
 
 -- command to enter the repl environment
@@ -258,6 +293,27 @@ function boot_os(id)
 
     stdout(id, "Memory initialized.\n")
     prompt(id)
+end
+
+-- function to handle the shutdown command
+---@param id any
+function shutdown(id)
+    -- print goodbye message
+    stdout(id, "System going into hardware shutdown mode, goodbye!\n")
+
+    -- get entity with given id
+    local entity = entity_from_hash(id)
+
+    -- set power consumption to 0
+    entity.electric_buffer_size = 0
+
+    -- clear stdout
+    clear_stdout(id)
+
+    -- reset environment
+    reset_environment(id)
+
+    -- set power state flag in environment
 end
 
 --- called in text update when in file editing mode
@@ -331,7 +387,7 @@ function handle_shell(e, hash)
             else
                 -- execute lua code
                 success, err = pcall(function()
-                    local out = assert(loadstring("return " .. input))() .. "\n"
+                    local out = assert(loadstring(script_prefix .. "return " .. input))() .. "\n"
                     stdout(hash, out)
                 end)
             end

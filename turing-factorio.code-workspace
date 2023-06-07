@@ -1,0 +1,23 @@
+{
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+  "settings": {
+    "factorio.versions": [
+      {
+        "name": "Steam",
+        "factorioPath": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Factorio\\bin\\x64\\factorio.exe",
+        "active": true
+      }
+    ],
+    "Lua.workspace.library": [
+      "c:\\Program Files (x86)\\Steam\\steamapps\\common\\Factorio\\data",
+      "C:\\Users\\nlaha\\Desktop\\Code\\flib_0.12.9"
+    ],
+    "Lua.workspace.userThirdParty": [
+      "c:\\Users\\nlaha\\AppData\\Roaming\\Code\\User\\workspaceStorage\\284a07d45a7cf0696c5c6569b9fff38d\\justarandomgeek.factoriomod-debug\\sumneko-3rd"
+    ]
+  }
+}
