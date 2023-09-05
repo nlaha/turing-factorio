@@ -89,14 +89,68 @@ end
 --- returns a unique string hash for an entity
 --- precondition: entity is valid
 --- @param entity LuaEntity
-function hash_entity(entity)
+function util.hash_entity(entity)
     return entity.name .. ":" .. entity.position.x .. ":" .. entity.position.y
 end
 
 --- returns an entity from a hash
-function entity_from_hash(hash)
+function util.entity_from_hash(hash)
     local name, x, y = strsplit(hash, ":")
     return game.surfaces[1].find_entity(name, {tonumber(x), tonumber(y)})
+end
+
+--- splits a path into its components
+function util.split_path(path)
+    local components = {}
+    for component in string.gmatch(path, "[^/]+") do
+        table.insert(components, component)
+    end
+    return components
+end
+
+function util.get_dir_from_path(id, path)
+
+    if global.fs[id].environment.current_directory == nil then
+        global.fs[id].environment.current_directory = {
+            name = "",
+            contents = global.fs[id].contents,
+            parent = nil
+        }
+    end
+
+    local current_dir = global.fs[id].environment.current_directory
+    local error_not_dir = false
+
+    -- split dirname by /
+    local split_dirname = util.split_path(path)
+    -- while there are still directories to traverse
+    for i = 1, #split_dirname do
+        -- if the directory is .., go up a directory
+        if split_dirname[i] == ".." then
+            current_dir = current_dir.parent
+            if not current_dir then
+                error_not_dir = true
+                break
+            end
+        -- if the directory is ., do nothing
+        elseif split_dirname[i] == "." then
+            current_dir = current_dir
+        -- otherwise, go down a directory
+        else
+            current_dir = current_dir.contents[split_dirname[i]]
+            if not current_dir then
+                error_not_dir = true
+                break
+            end
+        end
+    end
+
+    if error_not_dir then
+        stdout(id, "Error: " .. path .. " is not a directory.\n")
+        return
+    end
+
+    return current_dir
 end
 
 return util

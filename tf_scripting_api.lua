@@ -1,10 +1,12 @@
+local util = require("__turing-factorio__/util")
+
 --- function to write a signal
 ---@param id any
 ---@param wire any
 ---@param signal any
 function write_signal(id, wire, signal)
     -- gets the entity with the given id
-    local entity = entity_from_hash(id)
+    local entity = util.entity_from_hash(id)
 
     -- if the entity is nil, return
     if not entity then
@@ -22,7 +24,7 @@ end
 ---@param signal any
 function read_signal(id, wire, signal)
     -- gets the entity with the given id
-    local entity = entity_from_hash(id)
+    local entity = util.entity_from_hash(id)
 
     -- if the entity is nil, return
     if not entity then
@@ -57,10 +59,4 @@ function stdout(id, input)
 
     -- add length of input to cursor
     global.fs[id].output.stdout.cursor = global.fs[id].output.stdout.cursor + string.len(input)
-end
-
--- returns the current computer's identifier
----@param id any
-function getid(id)
-    return id
 end

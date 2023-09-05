@@ -1,14 +1,14 @@
 require("__turing-factorio__/tf_scripting_api")
+local util = require("__turing-factorio__/util")
 
 local default_environment = {
     repl = false,
     editing = false,
-    current_file = nil
+    current_file = nil,
+    current_directory = nil,
 }
 
-local script_prefix = [[
-
-]]
+local script_prefix = "local id = "
 
 function initialize_filesystem(id)
     -- create filesystem if it doesn't already exist
@@ -27,7 +27,7 @@ function initialize_filesystem(id)
                 }
             },
             environment = default_environment,
-            files = {},
+            contents = {},
             network_output = {},
             network_input = {}
         }
@@ -50,10 +50,18 @@ end
 
 -- function to write to stdin
 function prompt(id)
+    -- generate path to current directory
+    local path = ""
+    if global.fs[id].environment.current_directory then
+        path = "/" .. global.fs[id].environment.current_directory.name
+    end
+
     if not global.fs[id].environment.repl then
-        stdout(id, "engineer@nauvisos:~$ ")
+        -- trim id, do this by splitting by : and taking the last two components
+        local split_id = strsplit(id, ":")
+        stdout(id, "engineer@term" .. split_id[2] .. split_id[3] .. "|" .. path .. ":~$ ")
     else
-        stdout(id, "engineer@nauvisos [REPL]:~$ ")
+        stdout(id, "engineer@[REPL]:~$ ")
     end
 end
 
@@ -64,7 +72,7 @@ Welcome to the Nauvis OS help page.
 Type "man <command>" to get help on a specific command.
 Available commands:
 help, clear, repl, edit, run, ls, cat, rm, flash, mkdir, cd
-    ]])
+]])
 end
 
 function man(id, args)
@@ -123,9 +131,15 @@ function edit(id, args)
         stdout(id, "Error: no filename specified.\n")
         return
     end
+    
+    -- make sure we aren't editing a directory
+    if global.fs[id].contents[filename] and global.fs[id].contents[filename].directory then
+        stdout(id, "Error: " .. filename .. " is a directory.\n")
+        return
+    end
 
-    if not global.fs[id].files[filename] then
-        global.fs[id].files[filename] = {
+    if not global.fs[id].contents[filename] then
+        global.fs[id].contents[filename] = {
             contents = "",
             cursor = 1
         }
@@ -138,10 +152,10 @@ function edit(id, args)
     clear_stdout(id)
 
     -- write the contents of the file to stdout
-    stdout(id, global.fs[id].files[filename].contents)
+    stdout(id, global.fs[id].contents[filename].contents)
 
     -- set the cursor to the end of the file
-    global.fs[id].files[filename].cursor = string.len(global.fs[id].files[filename].contents)
+    global.fs[id].contents[filename].cursor = string.len(global.fs[id].contents[filename].contents)
 
     -- switch into editing mode
     global.fs[id].environment.editing = true
@@ -157,7 +171,11 @@ end
 --- prints the working directory
 ---@param id any
 function ls(id)
-    for k, v in pairs(global.fs[id].files) do
+    local dir = global.fs[id].environment.current_directory
+    if dir == nil then
+        dir = global.fs[id]
+    end
+    for k, v in pairs(dir.contents) do
         stdout(id, k .. "\n")
     end
 end
@@ -172,32 +190,52 @@ function cat(id, args)
         return
     end
 
-    if not global.fs[id].files[filename] then
-        stdout(id, "Error: file " .. filename .. " does not exist.\n")
-        return
+    local directory = util.get_dir_from_path(id, filename)
+
+    -- check for nil
+    if not directory then
+        directory = global.fs[id]
     end
 
-    stdout(id, global.fs[id].files[filename].contents)
+    stdout(id, directory.contents .. "\n")
 end
 
 --- creates a directory
 ---@param id any
 ---@param args any
 function mkdir(id, args)
-    local dirname = args[1]
-    if not dirname then
+    local path = args[1]
+    if not path then
         stdout(id, "Error: no directory name specified.\n")
         return
     end
 
-    if global.fs[id].files[dirname] then
-        stdout(id, "Error: file or directory " .. dirname .. " already exists.\n")
+    -- get everything but the last component of the path
+    local split_path = util.split_path(path)
+    -- slice the last component off
+    local dirname = table.remove(split_path)
+
+    -- pack back into a string
+    path = table.concat(split_path, "/")
+    -- get directory
+    local directory = util.get_dir_from_path(id, path)
+    
+    -- check if directory is nil
+    if not directory then
+        directory = global.fs[id].contents
+    end
+
+    -- check if directory already exists
+    if directory.contents[dirname] then
+        stdout(id, "Error: directory " .. dirname .. " already exists.\n")
         return
     end
 
-    global.fs[id].files[dirname] = {
+    directory.contents[dirname] = {
         contents = {},
-        directory = true
+        directory = true,
+        parent = directory,
+        name = dirname
     }
 end
 
@@ -211,35 +249,39 @@ function cd(id, args)
         return
     end
 
-    if not global.fs[id].files[dirname].directory then
-        stdout(id, "Error: " .. dirname .. " is not a directory.\n")
-        return
-    end
-
-    if not global.fs[id].files[dirname] then
-        stdout(id, "Error: directory " .. dirname .. " does not exist.\n")
-        return
-    end
-
-    global.fs[id].environment.current_directory = dirname
+    global.fs[id].environment.current_directory = util.get_dir_from_path(id, dirname)
 end
 
 --- deletes a file or directory
 ---@param id any
 ---@param args any
 function rm(id, args)
-    local filename = args[1]
-    if not filename then
-        stdout(id, "Error: no filename specified.\n")
+    local path = args[1]
+
+    -- check if path is nil
+    if not path then
+        stdout(id, "Error: no file or directory specified.\n")
         return
     end
 
-    if not global.fs[id].files[filename] then
-        stdout(id, "Error: file " .. filename .. " does not exist.\n")
-        return
+    -- get everything but the last component of the path
+    local split_path = util.split_path(path)
+    -- slice the last component off
+    local dirname = table.remove(split_path)
+
+    -- pack back into a string
+    path = table.concat(split_path, "/")
+    -- get directory
+    local directory = util.get_dir_from_path(id, path)
+
+    -- check if directory is nil
+    if not directory then
+        directory = global.fs[id]
     end
 
-    global.fs[id].files[filename] = nil
+    -- delete file/directory in directory
+    directory.contents[dirname] = nil
+    
 end
 
 --- executes the file locally
@@ -252,16 +294,24 @@ function run(id, args)
         return
     end
 
-    if not global.fs[id].files[filename] then
-        stdout(id, "Error: file " .. filename .. " does not exist.\n")
+    local file = util.get_dir_from_path(id, filename)
+
+    if not file then
+        return
+    end
+
+    if file.directory == true then
+        stdout(id, "Error: " .. filename .. " is a directory.\n")
         return
     end
 
     -- clear stdout
     clear_stdout(id)
 
+    local script = script_prefix .. "\"" .. id .. "\"\n" .. file.contents
+
     -- run the file using loadstring
-    local success, err = loadstring(script_prefix .. global.fs[id].files[filename].contents, filename)
+    local success, err = loadstring(script, filename)
     if not success then
         stdout(id, "Error: " .. err .. "\n")
         return
@@ -302,7 +352,7 @@ function shutdown(id)
     stdout(id, "System going into hardware shutdown mode, goodbye!\n")
 
     -- get entity with given id
-    local entity = entity_from_hash(id)
+    local entity = util.entity_from_hash(id)
 
     -- set power consumption to 0
     entity.electric_buffer_size = 0

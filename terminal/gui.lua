@@ -21,7 +21,7 @@ local function update_gui(self)
     local computer_frame_content = computer_frame_outer["tf_computer_frame_content"]
     local computer_frame = computer_frame_content["tf_computer_frame"]
     local terminal_text = computer_frame["tf_terminal_text"]
-    local hash = hash_entity(self.entity)
+    local hash = util.hash_entity(self.entity)
     local stdout = global.fs[hash].output.stdout.contents
     terminal_text.text = stdout
 end
@@ -31,7 +31,7 @@ local handlers = {
 
     on_cancel = function(self, e)
         -- if we're in editing mode, cancel the edit
-        local hash = hash_entity(self.entity)
+        local hash = util.hash_entity(self.entity)
         if global.fs[hash].environment.editing then
             -- disable editing mode
             global.fs[hash].environment.editing = false
@@ -46,13 +46,13 @@ local handlers = {
 
     on_save = function(self, e)
         -- if we're in editing mode, save the file
-        local hash = hash_entity(self.entity)
+        local hash = util.hash_entity(self.entity)
         if global.fs[hash].environment.editing then
             local file = global.fs[hash].environment.current_file
             -- get stdout
             local stdout = global.fs[hash].output.stdout.contents
             -- write to file
-            global.fs[hash].files[file].contents = stdout
+            global.fs[hash].contents[file].contents = stdout
 
             -- disable editing mode
             global.fs[hash].environment.editing = false
@@ -79,7 +79,7 @@ local handlers = {
         local player = game.get_player(e.player_index)
         local screen_element = player.gui.screen
         local computer_frame_outer = screen_element["tf_computer_frame_outer"]
-        local hash = hash_entity(self.entity)
+        local hash = util.hash_entity(self.entity)
         if computer_frame_outer then
             if e.element.name == "tf_terminal_text" then
                 if global.fs[hash].environment.editing then
@@ -108,7 +108,7 @@ end)
 -- create computer GUI
 function create_gui(player, entity)
 
-    local hash = hash_entity(entity)
+    local hash = util.hash_entity(entity)
     local elems = gui.add(player.gui.screen, {
         type = "frame",
         name = "tf_computer_frame_outer",
