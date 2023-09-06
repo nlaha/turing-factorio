@@ -1,5 +1,6 @@
 require("terminal/gui")
 require("terminal/os")
+local util = require("__turing-factorio__/util")
 
 entity_names = {
     ["tf-computer-terminal"] = true
@@ -34,7 +35,7 @@ local function on_entity_destroyed(e)
     end
 
     -- destroy filesystem for the hash of the entity
-    local hash = hash_entity(entity)
+    local hash = util.hash_entity(entity)
     destroy_filesystem(hash)
 
     for player_index, gui in pairs(global.tf_terminal_gui) do
@@ -65,7 +66,7 @@ end
 
 local function on_built_entity(e)
     -- create a filesystem for the hash of the entity
-    local hash = hash_entity(e.created_entity)
+    local hash = util.hash_entity(e.created_entity)
     initialize_filesystem(hash)
     boot_os(hash)
 end

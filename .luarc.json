@@ -1,4 +1,23 @@
 {
-  "Lua.workspace.library": ["../turing-factorio-src/flib_0.12.6"],
-  "Lua.runtime.version": "5.2.1"
+  "Lua.workspace.library": ["../turing-factorio-src/flib_0.12.6",
+        "c:/Users/nlaha/AppData/Roaming/Code/User/workspaceStorage/284a07d45a7cf0696c5c6569b9fff38d/justarandomgeek.factoriomod-debug/sumneko-3rd/factorio/library"],
+  "Lua.runtime.version": "Lua 5.2",
+    "runtime.builtin": {
+        "coroutine": "disable",
+        "debug": "disable",
+        "io": "disable",
+        "math": "disable",
+        "os": "disable",
+        "package": "disable"
+    },
+    "diagnostics.globals": [
+        "__DebugAdapter",
+        "__Profiler",
+        "create_gui",
+        "destroy_gui"
+    ],
+    "runtime.special": {
+        "__object_name": "type"
+    },
+    "runtime.plugin": "c:/Users/nlaha/AppData/Roaming/Code/User/workspaceStorage/284a07d45a7cf0696c5c6569b9fff38d/justarandomgeek.factoriomod-debug/sumneko-3rd/factorio/plugin.lua"
 }

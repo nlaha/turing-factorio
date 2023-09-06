@@ -1,8 +1,14 @@
+require("__turing-factorio__/tf_scripting_api")
+local util = require("__turing-factorio__/util")
+
 local default_environment = {
     repl = false,
     editing = false,
-    current_file = nil
+    current_file = nil,
+    current_directory = nil,
 }
+
+local script_prefix = "local id = "
 
 function initialize_filesystem(id)
     -- create filesystem if it doesn't already exist
@@ -21,7 +27,7 @@ function initialize_filesystem(id)
                 }
             },
             environment = default_environment,
-            files = {},
+            contents = {},
             network_output = {},
             network_input = {}
         }
@@ -36,21 +42,6 @@ function reset_environment(id)
     global.fs[id].environment = default_environment
 end
 
--- function to write to stdout
-function stdout(id, input)
-    if not global.fs[id] then
-        game.print("Error: terminal " .. id .. " does not exist.")
-    end
-    -- write input from cursor location
-    global.fs[id].output.stdout.contents = string.sub(global.fs[id].output.stdout.contents, 1,
-        global.fs[id].output.stdout.cursor) .. input ..
-                                               string.sub(global.fs[id].output.stdout.contents,
-            global.fs[id].output.stdout.cursor + 1)
-
-    -- add length of input to cursor
-    global.fs[id].output.stdout.cursor = global.fs[id].output.stdout.cursor + string.len(input)
-end
-
 -- function to clear stdout
 function clear_stdout(id)
     global.fs[id].output.stdout.contents = ""
@@ -59,24 +50,75 @@ end
 
 -- function to write to stdin
 function prompt(id)
+    -- generate path to current directory
+    local path = ""
+    if global.fs[id].environment.current_directory then
+        path = "/" .. global.fs[id].environment.current_directory.name
+    end
+
     if not global.fs[id].environment.repl then
-        stdout(id, "engineer@nauvisos:~$ ")
+        -- trim id, do this by splitting by : and taking the last two components
+        local split_id = strsplit(id, ":")
+        stdout(id, "engineer@term" .. split_id[2] .. split_id[3] .. "|" .. path .. ":~$ ")
     else
-        stdout(id, "engineer@nauvisos [REPL]:~$ ")
+        stdout(id, "engineer@[REPL]:~$ ")
     end
 end
 
 -- command to display help
 function help(id)
-    stdout(id, "  1.  help - display this help message\n")
-    stdout(id, "  2.  clear - clear the terminal\n")
-    stdout(id, "  3.  repl - enter the nauvis os repl environment\n")
-    stdout(id, "  4.  edit <filename> - edit a file\n")
-    stdout(id, "  5.  run <filename> - run a file\n")
-    stdout(id, "  6.  ls - list files\n")
-    stdout(id, "  7.  cat <filename> - display the contents of a file\n")
-    stdout(id, "  8.  rm <filename> - remove a file\n")
-    stdout(id, "  9.  flash <filename> <ip address/serial port>\n")
+    stdout(id, [[
+Welcome to the Nauvis OS help page.
+Type "man <command>" to get help on a specific command.
+Available commands:
+help, clear, repl, edit, run, ls, cat, rm, flash, mkdir, cd
+]])
+end
+
+function man(id, args)
+    local cmdname = args[1]
+
+    if not cmdname then
+        stdout(id, "Error: no command specified.\n")
+        return
+    end
+
+    if cmdname == "help" then
+        stdout(id, "help - display this help message\n")
+
+    elseif cmdname == "clear" then
+        stdout(id, "clear - clear the terminal\n")
+        
+    elseif cmdname == "repl" then
+        stdout(id, "repl - enter the nauvis os repl environment\n")
+    
+    elseif cmdname == "edit" then
+        stdout(id, "edit <filename> - edit a file\n")
+    
+    elseif cmdname == "run" then
+        stdout(id, "run <filename> - run a file\n")
+    
+    elseif cmdname == "ls" then
+        stdout(id, "ls - list files\n")
+    
+    elseif cmdname == "cat" then
+        stdout(id, "cat <filename> - display the contents of a file\n")
+    
+    elseif cmdname == "rm" then
+        stdout(id, "rm <filename> - remove a file\n")
+    
+    elseif cmdname == "flash" then
+        stdout(id, "flash <filename> <ip address/serial port>\n")
+    
+    elseif cmdname == "mkdir" then
+        stdout(id, "mkdir <dirname> - create a directory\n")
+
+    elseif cmdname == "cd" then
+        stdout(id, "cd <dirname> - change directory\n")
+    else
+        stdout(id, "Error: command " .. cmdname .. " not found.\n")
+    end
+
 end
 
 -- command to edit a file
@@ -89,9 +131,15 @@ function edit(id, args)
         stdout(id, "Error: no filename specified.\n")
         return
     end
+    
+    -- make sure we aren't editing a directory
+    if global.fs[id].contents[filename] and global.fs[id].contents[filename].directory then
+        stdout(id, "Error: " .. filename .. " is a directory.\n")
+        return
+    end
 
-    if not global.fs[id].files[filename] then
-        global.fs[id].files[filename] = {
+    if not global.fs[id].contents[filename] then
+        global.fs[id].contents[filename] = {
             contents = "",
             cursor = 1
         }
@@ -104,10 +152,10 @@ function edit(id, args)
     clear_stdout(id)
 
     -- write the contents of the file to stdout
-    stdout(id, global.fs[id].files[filename].contents)
+    stdout(id, global.fs[id].contents[filename].contents)
 
     -- set the cursor to the end of the file
-    global.fs[id].files[filename].cursor = string.len(global.fs[id].files[filename].contents)
+    global.fs[id].contents[filename].cursor = string.len(global.fs[id].contents[filename].contents)
 
     -- switch into editing mode
     global.fs[id].environment.editing = true
@@ -123,7 +171,11 @@ end
 --- prints the working directory
 ---@param id any
 function ls(id)
-    for k, v in pairs(global.fs[id].files) do
+    local dir = global.fs[id].environment.current_directory
+    if dir == nil then
+        dir = global.fs[id]
+    end
+    for k, v in pairs(dir.contents) do
         stdout(id, k .. "\n")
     end
 end
@@ -138,30 +190,98 @@ function cat(id, args)
         return
     end
 
-    if not global.fs[id].files[filename] then
-        stdout(id, "Error: file " .. filename .. " does not exist.\n")
+    local directory = util.get_dir_from_path(id, filename)
+
+    -- check for nil
+    if not directory then
+        directory = global.fs[id]
+    end
+
+    stdout(id, directory.contents .. "\n")
+end
+
+--- creates a directory
+---@param id any
+---@param args any
+function mkdir(id, args)
+    local path = args[1]
+    if not path then
+        stdout(id, "Error: no directory name specified.\n")
         return
     end
 
-    stdout(id, global.fs[id].files[filename].contents)
+    -- get everything but the last component of the path
+    local split_path = util.split_path(path)
+    -- slice the last component off
+    local dirname = table.remove(split_path)
+
+    -- pack back into a string
+    path = table.concat(split_path, "/")
+    -- get directory
+    local directory = util.get_dir_from_path(id, path)
+    
+    -- check if directory is nil
+    if not directory then
+        directory = global.fs[id].contents
+    end
+
+    -- check if directory already exists
+    if directory.contents[dirname] then
+        stdout(id, "Error: directory " .. dirname .. " already exists.\n")
+        return
+    end
+
+    directory.contents[dirname] = {
+        contents = {},
+        directory = true,
+        parent = directory,
+        name = dirname
+    }
 end
 
---- deletes a file
+-- changes the current directory
+---@param id any
+---@param args any
+function cd(id, args)
+    local dirname = args[1]
+    if not dirname then
+        stdout(id, "Error: no directory name specified.\n")
+        return
+    end
+
+    global.fs[id].environment.current_directory = util.get_dir_from_path(id, dirname)
+end
+
+--- deletes a file or directory
 ---@param id any
 ---@param args any
 function rm(id, args)
-    local filename = args[1]
-    if not filename then
-        stdout(id, "Error: no filename specified.\n")
+    local path = args[1]
+
+    -- check if path is nil
+    if not path then
+        stdout(id, "Error: no file or directory specified.\n")
         return
     end
 
-    if not global.fs[id].files[filename] then
-        stdout(id, "Error: file " .. filename .. " does not exist.\n")
-        return
+    -- get everything but the last component of the path
+    local split_path = util.split_path(path)
+    -- slice the last component off
+    local dirname = table.remove(split_path)
+
+    -- pack back into a string
+    path = table.concat(split_path, "/")
+    -- get directory
+    local directory = util.get_dir_from_path(id, path)
+
+    -- check if directory is nil
+    if not directory then
+        directory = global.fs[id]
     end
 
-    global.fs[id].files[filename] = nil
+    -- delete file/directory in directory
+    directory.contents[dirname] = nil
+    
 end
 
 --- executes the file locally
@@ -174,65 +294,30 @@ function run(id, args)
         return
     end
 
-    if not global.fs[id].files[filename] then
-        stdout(id, "Error: file " .. filename .. " does not exist.\n")
+    local file = util.get_dir_from_path(id, filename)
+
+    if not file then
+        return
+    end
+
+    if file.directory == true then
+        stdout(id, "Error: " .. filename .. " is a directory.\n")
         return
     end
 
     -- clear stdout
     clear_stdout(id)
 
+    local script = script_prefix .. "\"" .. id .. "\"\n" .. file.contents
+
     -- run the file using loadstring
-    local success, err = loadstring(global.fs[id].files[filename].contents, filename)
+    local success, err = loadstring(script, filename)
     if not success then
         stdout(id, "Error: " .. err .. "\n")
         return
     end
 
     success()
-end
-
---- function to write a signal
----@param id any
----@param wire any
----@param signal any
-function write_signal(id, wire, signal)
-    -- gets the entity with the given id
-    local entity = entity_from_hash(id)
-
-    -- if the entity is nil, return
-    if not entity then
-        return
-    end
-
-    -- output signal on the given wire
-    -- TODO: Change prototype type such that it has an output signal
-    -- (we need the correct control behavior)
-end
-
--- function to read a signal
----@param id any
----@param wire any
----@param signal any
-function read_signal(id, wire, signal)
-    -- gets the entity with the given id
-    local entity = entity_from_hash(id)
-
-    -- if the entity is nil, return
-    if not entity then
-        return
-    end
-
-    -- read signal on the given wire
-    signals = entity.get_circuit_network(wire).signals
-
-    -- if the signal is nil, return
-    if not signals then
-        return
-    end
-
-    -- return the signal
-    return signals[signal]
 end
 
 -- command to enter the repl environment
@@ -258,6 +343,27 @@ function boot_os(id)
 
     stdout(id, "Memory initialized.\n")
     prompt(id)
+end
+
+-- function to handle the shutdown command
+---@param id any
+function shutdown(id)
+    -- print goodbye message
+    stdout(id, "System going into hardware shutdown mode, goodbye!\n")
+
+    -- get entity with given id
+    local entity = util.entity_from_hash(id)
+
+    -- set power consumption to 0
+    entity.electric_buffer_size = 0
+
+    -- clear stdout
+    clear_stdout(id)
+
+    -- reset environment
+    reset_environment(id)
+
+    -- set power state flag in environment
 end
 
 --- called in text update when in file editing mode
@@ -331,7 +437,7 @@ function handle_shell(e, hash)
             else
                 -- execute lua code
                 success, err = pcall(function()
-                    local out = assert(loadstring("return " .. input))() .. "\n"
+                    local out = assert(loadstring(script_prefix .. "return " .. input))() .. "\n"
                     stdout(hash, out)
                 end)
             end
