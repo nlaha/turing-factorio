@@ -2,6 +2,7 @@ local styles = data.raw["gui-style"].default
 
 require 'prototypes/fonts'
 require 'prototypes/terminal'
+require 'prototypes/microcontroller'
 
 local terminal_frame = {
     base = {
